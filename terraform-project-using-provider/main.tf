@@ -12,5 +12,5 @@ provider "githubtok" {
 
 resource githubtok_token "mytoken" {
   provider = githubtok
-  name = "afialsd"
+  name = "fadso"
 }

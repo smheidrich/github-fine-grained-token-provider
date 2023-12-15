@@ -43,6 +43,7 @@ class ProviderConfig:
 
 @attributes_class()
 class TokenResourceConfig:
+    id: str = attribute(computed=True)
     name: str = attribute(required=True)
     # bar: datetime = attribute(representation=DateAsStringRepr())
 
@@ -113,10 +114,19 @@ class TokenResource(BaseResource):
         async with credentialed_client() as session:
             try:
                 token_info = await session.get_token_info_by_name(current_state.name)
-                new_state = TokenResourceConfig(name=token_info.name)
+                new_state = TokenResourceConfig(
+                    name=token_info.name, id=str(token_info.id)
+                )
             except KeyError:
                 diagnostics.add_warning("token not found, but thats ok")
         return new_state
+
+    async def import_resource(
+        self, id: str, diagnostics: Diagnostics
+    ) -> TokenResourceConfig:
+        async with credentialed_client() as session:
+            token_info = await session.get_token_info_by_id(int(id))
+        return TokenResourceConfig(id=id, name=token_info.name)
 
 
 class Provider(BaseProvider):
