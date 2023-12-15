@@ -43,7 +43,7 @@ class ProviderConfig:
 
 @attributes_class()
 class TokenResourceConfig:
-    id: str = attribute(computed=True)
+    id: str | None = attribute(computed=True)
     name: str = attribute(required=True)
     # bar: datetime = attribute(representation=DateAsStringRepr())
 
@@ -69,6 +69,7 @@ class TokenResource(BaseResource):
     ) -> PlanResourceChangeResponse[TokenResourceConfig]:
         if prior_state is not None and prior_state.name != config.name:
             requires_replace = [ROOT.attribute_name("name")]
+            # TODO set ID to Unknown here (requires yet more reprs)
         else:
             requires_replace = None
         return (
