@@ -11,8 +11,10 @@ from github_fine_grained_token_client import (
     TwoFactorOtpProvider,
     async_client,
 )
+from tfprovider.level2.attribute_path import ROOT
 from tfprovider.level2.diagnostics import Diagnostics
 from tfprovider.level3.statically_typed_schema import attribute, attributes_class
+from tfprovider.level4.async_provider_servicer import PlanResourceChangeResponse
 from tfprovider.level4.async_provider_servicer import Provider as BaseProvider
 from tfprovider.level4.async_provider_servicer import Resource as BaseResource
 
@@ -63,8 +65,16 @@ class TokenResource(BaseResource):
         config: TokenResourceConfig,
         proposed_new_state: TokenResourceConfig | None,
         diagnostics: Diagnostics,
-    ) -> TokenResourceConfig:
-        return proposed_new_state
+    ) -> PlanResourceChangeResponse[TokenResourceConfig]:
+        if prior_state is not None and prior_state.name != config.name:
+            requires_replace = [ROOT.attribute_name("name")]
+        else:
+            requires_replace = None
+        return (
+            (proposed_new_state, requires_replace)
+            if requires_replace is not None
+            else proposed_new_state
+        )
 
     async def apply_resource_change(
         self,
