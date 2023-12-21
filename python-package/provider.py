@@ -67,13 +67,15 @@ class TokenResource(BaseResource):
         config: TokenResourceConfig,
         proposed_new_state: TokenResourceConfig | None,
         diagnostics: Diagnostics,
-    ) -> PlanResourceChangeResponse[TokenResourceConfig]:
+    ) -> PlanResourceChangeResponse[TokenResourceConfig] | None:
+        if proposed_new_state is None:
+            return proposed_new_state
         if prior_state is not None and prior_state.name != config.name:
             requires_replace = [ROOT.attribute_name("name")]
             proposed_new_state.id = UnrefinedUnknown()
         else:
             requires_replace = None
-            if proposed_new_state is not None and proposed_new_state.id is None:
+            if proposed_new_state.id is None:
                 proposed_new_state.id = UnrefinedUnknown()
         return (
             (proposed_new_state, requires_replace)
@@ -89,18 +91,27 @@ class TokenResource(BaseResource):
         diagnostics: Diagnostics,
     ) -> TokenResourceConfig | None:
         new_state = None
-        if config is not None:
-            async with credentialed_client() as session:
+        async with credentialed_client() as session:
+            if proposed_new_state is not None:
                 try:
                     token_value = await session.create_token(
                         proposed_new_state.name, expires=timedelta(days=1)
                     )
                     diagnostics.add_warning(f"created token: {token_value}")
+                    token_info = await session.get_token_info_by_name(
+                        proposed_new_state.name
+                    )
                 except TokenNameError as e:
-                    diagnostics.add_warning(f"not creating new token: {e}")
-                new_state = TokenResourceConfig(name=config.name)
-        else:
-            print("DESTROY", file=stderr)
+                    diagnostics.add_error(f"not creating new token: {e}")
+                    return
+                new_state = TokenResourceConfig(
+                    id=str(token_info.id), name=proposed_new_state.name
+                )
+            else:
+                if prior_state is None:
+                    return None
+                assert isinstance(prior_state.id, str), "bug"
+                await session.delete_token_by_id(int(prior_state.id))
         return new_state
 
     async def upgrade_resource_state(
@@ -113,7 +124,7 @@ class TokenResource(BaseResource):
 
     async def read_resource(
         self, current_state: TokenResourceConfig, diagnostics: Diagnostics
-    ) -> TokenResourceConfig:
+    ) -> TokenResourceConfig | None:
         new_state = None
         async with credentialed_client() as session:
             try:
