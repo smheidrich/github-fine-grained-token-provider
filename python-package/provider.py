@@ -1,4 +1,5 @@
 import asyncio
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from os import environ
@@ -6,6 +7,7 @@ from pathlib import Path
 from sys import stderr
 
 from github_fine_grained_token_client import (
+    AsyncClientSession,
     GithubCredentials,
     TokenNameError,
     TwoFactorOtpProvider,
@@ -26,7 +28,7 @@ class EnvTwoFactorOtpProvider(TwoFactorOtpProvider):
 
 
 @asynccontextmanager
-async def credentialed_client():
+async def credentialed_client() -> AsyncIterator[AsyncClientSession]:
     credentials = GithubCredentials(environ["GITHUB_USER"], environ["GITHUB_PASS"])
     assert credentials.username and credentials.password
     async with async_client(
@@ -49,7 +51,7 @@ class TokenResourceConfig:
     # bar: datetime = attribute(representation=DateAsStringRepr())
 
 
-class TokenResource(BaseResource):
+class TokenResource(BaseResource[None, TokenResourceConfig]):
     type_name = "githubtok_token"
     config_type = TokenResourceConfig
 
@@ -103,7 +105,7 @@ class TokenResource(BaseResource):
                     )
                 except TokenNameError as e:
                     diagnostics.add_error(f"not creating new token: {e}")
-                    return
+                    return None
                 new_state = TokenResourceConfig(
                     id=str(token_info.id), name=proposed_new_state.name
                 )
@@ -144,7 +146,7 @@ class TokenResource(BaseResource):
         return TokenResourceConfig(id=id, name=token_info.name)
 
 
-class Provider(BaseProvider):
+class Provider(BaseProvider[None, ProviderConfig]):
     provider_state = None
     resource_factories = [TokenResource]
     config_type = ProviderConfig
@@ -158,7 +160,7 @@ class Provider(BaseProvider):
         print("vpc", file=stderr)
 
 
-def main():
+def main() -> None:
     s = Provider()
     asyncio.run(s.run())
 
