@@ -13,6 +13,7 @@ from github_fine_grained_token_client import (
 )
 from tfprovider.level2.attribute_path import ROOT
 from tfprovider.level2.diagnostics import Diagnostics
+from tfprovider.level2.wire_format import Unknown, UnrefinedUnknown
 from tfprovider.level3.statically_typed_schema import attribute, attributes_class
 from tfprovider.level4.async_provider_servicer import PlanResourceChangeResponse
 from tfprovider.level4.async_provider_servicer import Provider as BaseProvider
@@ -43,7 +44,7 @@ class ProviderConfig:
 
 @attributes_class()
 class TokenResourceConfig:
-    id: str | None = attribute(computed=True)
+    id: str | None | Unknown = attribute(computed=True)
     name: str = attribute(required=True)
     # bar: datetime = attribute(representation=DateAsStringRepr())
 
@@ -69,9 +70,11 @@ class TokenResource(BaseResource):
     ) -> PlanResourceChangeResponse[TokenResourceConfig]:
         if prior_state is not None and prior_state.name != config.name:
             requires_replace = [ROOT.attribute_name("name")]
-            # TODO set ID to Unknown here (requires yet more reprs)
+            proposed_new_state.id = UnrefinedUnknown()
         else:
             requires_replace = None
+            if proposed_new_state is not None and proposed_new_state.id is None:
+                proposed_new_state.id = UnrefinedUnknown()
         return (
             (proposed_new_state, requires_replace)
             if requires_replace is not None
