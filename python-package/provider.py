@@ -1,7 +1,7 @@
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import timedelta
+from datetime import date, timedelta
 from os import environ
 from pathlib import Path
 from sys import stderr
@@ -13,9 +13,14 @@ from github_fine_grained_token_client import (
     TwoFactorOtpProvider,
     async_client,
 )
+from github_fine_grained_token_client.common import Expired
 from tfprovider.level2.attribute_path import ROOT
 from tfprovider.level2.diagnostics import Diagnostics
 from tfprovider.level2.wire_format import Unknown, UnrefinedUnknown
+from tfprovider.level2.wire_representation import (
+    DateAsStringWireRepresentation,
+    OptionalWireRepresentation,
+)
 from tfprovider.level3.statically_typed_schema import attribute, attributes_class
 from tfprovider.level4.async_provider_servicer import PlanResourceChangeResponse
 from tfprovider.level4.async_provider_servicer import Provider as BaseProvider
@@ -48,6 +53,12 @@ class ProviderConfig:
 class TokenResourceConfig:
     id: str | None | Unknown = attribute(computed=True)
     name: str = attribute(required=True)
+    expires: date | None = attribute(
+        optional=True,
+        computed=True,
+        default=None,
+        representation=OptionalWireRepresentation(DateAsStringWireRepresentation()),
+    )
     # bar: datetime = attribute(representation=DateAsStringRepr())
 
 
@@ -72,8 +83,17 @@ class TokenResource(BaseResource[None, TokenResourceConfig]):
     ) -> PlanResourceChangeResponse[TokenResourceConfig] | None:
         if proposed_new_state is None:
             return proposed_new_state
-        if prior_state is not None and prior_state.name != config.name:
-            requires_replace = [ROOT.attribute_name("name")]
+        if proposed_new_state.expires is None:
+            proposed_new_state.expires = date.today() + timedelta(days=1)
+        if prior_state is not None and (
+            prior_state.name != proposed_new_state.name
+            or prior_state.expires != proposed_new_state.expires
+        ):
+            requires_replace = []
+            if prior_state.name != proposed_new_state.name:
+                requires_replace.append(ROOT.attribute_name("name"))
+            if prior_state.expires != proposed_new_state.expires:
+                requires_replace.append(ROOT.attribute_name("expires"))
             proposed_new_state.id = UnrefinedUnknown()
         else:
             requires_replace = None
@@ -97,7 +117,10 @@ class TokenResource(BaseResource[None, TokenResourceConfig]):
             if proposed_new_state is not None:
                 try:
                     token_value = await session.create_token(
-                        proposed_new_state.name, expires=timedelta(days=1)
+                        proposed_new_state.name,
+                        expires=proposed_new_state.expires
+                        if proposed_new_state.expires is not None
+                        else timedelta(days=1),
                     )
                     diagnostics.add_warning(f"created token: {token_value}")
                     token_info = await session.get_token_info_by_name(
@@ -107,7 +130,11 @@ class TokenResource(BaseResource[None, TokenResourceConfig]):
                     diagnostics.add_error(f"not creating new token: {e}")
                     return None
                 new_state = TokenResourceConfig(
-                    id=str(token_info.id), name=proposed_new_state.name
+                    id=str(token_info.id),
+                    name=proposed_new_state.name,
+                    expires=token_info.expires.date()
+                    if not isinstance(token_info.expires, Expired)
+                    else date.today() - timedelta(days=1),
                 )
             else:
                 if prior_state is None:
@@ -132,7 +159,11 @@ class TokenResource(BaseResource[None, TokenResourceConfig]):
             try:
                 token_info = await session.get_token_info_by_name(current_state.name)
                 new_state = TokenResourceConfig(
-                    name=token_info.name, id=str(token_info.id)
+                    name=token_info.name,
+                    id=str(token_info.id),
+                    expires=token_info.expires.date()
+                    if not isinstance(token_info.expires, Expired)
+                    else date.today() - timedelta(days=1),
                 )
             except KeyError:
                 diagnostics.add_warning("token not found, but thats ok")
