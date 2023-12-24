@@ -57,12 +57,23 @@ class ProviderConfig:
 @attributes_class()
 class TokenResourceConfig:
     id: str | None | Unknown = attribute(computed=True)
-    name: str = attribute(required=True)
+    # TODO as I only found out now, anything that users can stick variables
+    #   into must be unknown-able, because the value given to planning when
+    #   there is a variable in the attr config will be a refined unknown with
+    #   that as the default (ext type 12); doing this for name now but also
+    #   needs to be done for the rest I think
+    name: str | Unknown = attribute(required=True)
     expires: date | None = attribute(
         optional=True,
         computed=True,
         default=None,
         representation=OptionalWireRepresentation(DateAsStringWireRepresentation()),
+    )
+    value: str | Unknown | None = attribute(
+        default=None,
+        computed=True,
+        sensitive=True,
+        description="The (secret) token string",
     )
     # TODO the only way these are None is if a config is loaded in which they
     #   are not set, but that should be taken care of by the
@@ -71,7 +82,8 @@ class TokenResourceConfig:
     # TODO computed=True, this is only needed because we apply the
     #   (non-None) default when planning; so compute=True should be set
     #   automatically for anything with a non-None default.
-    select_repositories: set[str] | None = attribute(
+    # TODO see above re: unknown
+    select_repositories: set[str | Unknown] | None = attribute(
         default_factory=set, optional=True, computed=True
     )
     read_permissions: set[str] | None = attribute(
@@ -151,10 +163,12 @@ class TokenResource(BaseResource[None, TokenResourceConfig]):
             if prior_state.write_permissions != proposed_new_state.write_permissions:
                 requires_replace.append(ROOT.attribute_name("write_permissions"))
             proposed_new_state.id = UnrefinedUnknown()
+            proposed_new_state.value = UnrefinedUnknown()
         else:
             requires_replace = None
             if proposed_new_state.id is None:
                 proposed_new_state.id = UnrefinedUnknown()
+                proposed_new_state.value = UnrefinedUnknown()
         return (
             (proposed_new_state, requires_replace)
             if requires_replace is not None
@@ -213,6 +227,8 @@ class TokenResource(BaseResource[None, TokenResourceConfig]):
                 new_state.select_repositories = config.select_repositories or set()
                 new_state.read_permissions = config.read_permissions or set()
                 new_state.write_permissions = config.write_permissions or set()
+                # not saved on GitHub so not part of token info either:
+                new_state.value = token_value
             else:
                 if prior_state is None:
                     return None
@@ -242,6 +258,9 @@ class TokenResource(BaseResource[None, TokenResourceConfig]):
                 )
                 new_state.read_permissions = current_state.read_permissions or set()
                 new_state.write_permissions = current_state.write_permissions or set()
+                # the token value itself is not saved on GitHub's end so we
+                # *have to* take it from the current state:
+                new_state.value = current_state.value
             except KeyError:
                 diagnostics.add_warning("token not found, but thats ok")
         return new_state
