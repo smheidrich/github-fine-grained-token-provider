@@ -4,3 +4,4 @@ __pycache__
 *.tfstate
 *.backup
 .env
+*.lock.hcl
