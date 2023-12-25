@@ -1,16 +1,17 @@
 [tool.poetry]
-name = "hello-world-provider"
+name = "github-fine-grained-token-provider"
 version = "0.1.0"
-description = "Example Terraform provider using the tfprovider Python library"
+description = ""
 authors = ["Example Author <author@example.net>"]
 readme = "README.md"
 
 [tool.poetry.scripts]
-hello-world-provider = 'hello_world_provider:main'
+github-fine-grained-token-provider = 'github_fine_grained_token_provider:main'
 
 [tool.poetry.dependencies]
 python = "^3.11"
 tfprovider = "*"
+github-fine-grained-token-client = "*"
 
 [build-system]
 requires = ["poetry-core>=1.0.0,<2"]

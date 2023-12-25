@@ -5,3 +5,5 @@ __pycache__
 *.backup
 .env
 *.lock.hcl
+releases/
+tmp/

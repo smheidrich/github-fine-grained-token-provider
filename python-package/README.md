@@ -1,3 +1,3 @@
-# Hello World Provider
+# github-fine-grained-token-provider
 
-Example Terraform provider using the tfprovider Python library
+Python package for github-fine-grained-token-provider
