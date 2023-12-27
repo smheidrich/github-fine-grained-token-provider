@@ -19,6 +19,6 @@ resource githubtok_token "mirror_token" {
   #name = "mirror-${var.project_name}"
   name = "mirror-ghfgtp"
   expires = "2024-12-10"
-  write_permissions = ["contents", "actions"]
+  write_permissions = ["contents", "actions", "workflows"]
   select_repositories = [var.project_name]
 }
