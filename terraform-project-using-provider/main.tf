@@ -1,17 +1,17 @@
 terraform {
   required_providers {
-    githubtok = {
+    githubfinetok = {
       source = "local/github-fine-grained-token"
       version = "0.1.0"
     }
   }
 }
 
-provider "githubtok" {
+provider "githubfinetok" {
 }
 
-resource githubtok_token "mytoken" {
-  provider = githubtok
+resource githubfinetok_token "mytoken" {
+  provider = githubfinetok
   name = "sometesttok"
   expires = "2023-12-30"
   read_permissions = ["contents", "actions"]

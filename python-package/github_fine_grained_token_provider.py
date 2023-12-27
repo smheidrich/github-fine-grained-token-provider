@@ -112,7 +112,7 @@ def token_resource_config_from_token_info(
 
 
 class TokenResource(BaseResource[None, TokenResourceConfig]):
-    type_name = "githubtok_token"
+    type_name = "githubfinetok_token"
     config_type = TokenResourceConfig
 
     schema_version = 1
