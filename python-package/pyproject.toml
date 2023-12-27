@@ -4,6 +4,9 @@ version = "0.1.0"
 description = ""
 authors = ["Example Author <author@example.net>"]
 readme = "README.md"
+packages = [
+  { include = "github_fine_grained_token_provider.py" }
+]
 
 [tool.poetry.scripts]
 github-fine-grained-token-provider = 'github_fine_grained_token_provider:main'
