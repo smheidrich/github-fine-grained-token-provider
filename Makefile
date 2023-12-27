@@ -30,7 +30,7 @@ $(release_dir)/terraform-provider-$(name)_$(version)_SHA256SUMS.sig: \
 $(release_dir)/terraform-provider-$(name)_$(version)_SHA256SUMS: \
  $(release_dir)/terraform-provider-$(name)_$(version)_$(os)_$(arch).zip
 	mkdir -p $(release_dir)
-	shasum -a 256 $(release_dir)/*.zip > $@
+	( cd $(release_dir) && shasum -a 256 *.zip *.json > terraform-provider-$(name)_$(version)_SHA256SUMS )
 
 $(release_dir)/terraform-provider-$(name)_$(version)_manifest.json: \
  manifest.json
